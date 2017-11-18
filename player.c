@@ -6,13 +6,11 @@
 #include <id3v2lib.h>
 #include "player.h"
 
-//TODO
-//usar uma biblioteca para ler as informações das músicas
-
 char song[100];
 Mix_Music *music;
 
 int channel_num = 2;
+int previous_volume = 0;
 GtkWidget *mono_widget;
 GtkWidget *stereo_widget;
 
@@ -39,9 +37,13 @@ int destroy(){
 	return 0;
 }
 
+void swap_tool_button(GtkWidget *widget_to_hide, GtkWidget *widget_to_show){
+	gtk_widget_hide(GTK_WIDGET(widget_to_hide));
+	gtk_widget_show(GTK_WIDGET(widget_to_show));
+}
+
 void play_music(){
-	gtk_widget_hide(GTK_WIDGET(play_button));
-	gtk_widget_show(GTK_WIDGET(pause_button));
+	swap_tool_button(GTK_WIDGET(play_button), GTK_WIDGET(pause_button));
 	gtk_widget_set_sensitive(GTK_WIDGET(stop_button), TRUE);
 	if (!Mix_PausedMusic()) {
 		Mix_PlayMusic(music, 1);
@@ -53,18 +55,22 @@ void play_music(){
 }
 
 void pause_music(){
-	gtk_widget_hide(GTK_WIDGET(pause_button));
-	gtk_widget_show(GTK_WIDGET(play_button));
+	swap_tool_button(GTK_WIDGET(pause_button), GTK_WIDGET(play_button));
 	Mix_PauseMusic();
 	check_music();
 }
 
 void stop_music(){
+	if (Mix_PausedMusic()){
+		previous_volume = Mix_VolumeMusic(0);
+		printf("%d\n", previous_volume);
+		Mix_ResumeMusic();
+	}
+	swap_tool_button(GTK_WIDGET(pause_button), GTK_WIDGET(play_button));
 	Mix_HaltMusic();
-	gtk_widget_hide(GTK_WIDGET(pause_button));
-	gtk_widget_show(GTK_WIDGET(play_button));
 	gtk_widget_set_sensitive(GTK_WIDGET(stop_button), FALSE);
-	rapeizefm_audio_init();
+	Mix_VolumeMusic(previous_volume);
+	set_audio();
 }
 
 void check_music(){
@@ -170,7 +176,10 @@ void rapeizefm_audio_init(){
                 printf("Mix_Init: %s\n", Mix_GetError());
                 exit(1);
         }
+        set_audio();
+}
 
+void set_audio(){
         Mix_OpenAudio(44100, AUDIO_S16SYS, channel_num, 1024);
 
         music = Mix_LoadMUS(song);
